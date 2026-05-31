@@ -87,9 +87,14 @@ def parse_args():
         description="Convert GVTBench coco/vcr OC and MCI annotations into Arrow files."
     )
     parser.add_argument("--anno-dir", required=True, type=Path, help="Directory with GVTBench json files.")
-    parser.add_argument("--coco-val2017", required=True, type=Path, help="COCO val2017 image directory.")
-    parser.add_argument("--vcr-root", required=True, type=Path, help="VCR root directory containing vcr1images/.")
+    parser.add_argument("--coco-val2017", type=Path, help="COCO val2017 image directory.")
+    parser.add_argument("--vcr-root", type=Path, help="VCR root directory containing vcr1images/.")
     parser.add_argument("--save-dir", required=True, type=Path, help="Directory to write Arrow files.")
+    parser.add_argument(
+        "--tasks",
+        default=",".join(ANNOTATION_FILES),
+        help="Comma-separated task names to convert. Choices: %s" % ", ".join(ANNOTATION_FILES),
+    )
     return parser.parse_args()
 
 
@@ -104,7 +109,18 @@ def main():
     check_dependencies()
     args = parse_args()
 
-    for name, filename in ANNOTATION_FILES.items():
+    selected_tasks = [task.strip() for task in args.tasks.split(",") if task.strip()]
+    unknown_tasks = sorted(set(selected_tasks) - set(ANNOTATION_FILES))
+    if unknown_tasks:
+        raise ValueError("Unknown tasks: %s" % ", ".join(unknown_tasks))
+
+    if any(task.startswith("coco_") for task in selected_tasks) and args.coco_val2017 is None:
+        raise ValueError("--coco-val2017 is required for COCO GVTBench tasks.")
+    if any(task.startswith("vcr_") for task in selected_tasks) and args.vcr_root is None:
+        raise ValueError("--vcr-root is required for VCR GVTBench tasks.")
+
+    for name in selected_tasks:
+        filename = ANNOTATION_FILES[name]
         anno_path = args.anno_dir / filename
         if not anno_path.is_file():
             raise FileNotFoundError(f"Missing annotation file: {anno_path}")

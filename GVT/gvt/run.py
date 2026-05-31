@@ -1,6 +1,7 @@
 import os
 import copy
 import torch
+from pathlib import Path
 from collections import OrderedDict
 import pytorch_lightning as pl
 
@@ -69,6 +70,19 @@ def main(_config):
 
     _config = copy.deepcopy(_config)
     pl.seed_everything(_config["seed"])
+
+    output_dir = Path(_config.get("output_dir") or ".")
+    pred_result_dir = Path(_config.get("pred_result_dir") or output_dir / "pred_results")
+    log_dir = Path(_config.get("log_dir") or output_dir / "output")
+    eval_gt_dir = Path(_config["data_root"]) / "eval_gt" if _config.get("data_root") else output_dir / "eval_gt"
+
+    pred_result_dir.mkdir(parents=True, exist_ok=True)
+    (pred_result_dir / "count").mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    eval_gt_dir.mkdir(parents=True, exist_ok=True)
+
+    _config["pred_result_dir"] = str(pred_result_dir)
+    _config["log_dir"] = str(log_dir)
 
     dm = MTDataModule(_config, dist=True)
 

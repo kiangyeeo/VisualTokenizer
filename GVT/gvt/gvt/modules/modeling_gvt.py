@@ -1,6 +1,7 @@
 from functools import partial
 import string
 import os
+from pathlib import Path
 
 import copy
 import torch
@@ -12,6 +13,7 @@ import pytorch_lightning as pl
 from gvt.modules import utils
 from gvt.modules.visual_modules.perceiver import PerceiverResampler        
 from gvt.modules.visual_modules.eva import EVAVisionTransformer
+from gvt.modules.visual_tokenizers import build_visual_tokenizer
 from apex.normalization import FusedLayerNorm
 
 # for evaluation
@@ -57,19 +59,33 @@ class GVT(pl.LightningModule):
         self.hparams.config = config 
 
         
-        self.visual_encoder = self.init_vision_encoder()
-        self.ln_vision = nn.LayerNorm(self.patch_embed_dim)
-        for n, p in self.visual_encoder.named_parameters():
-            p.requires_grad = False
+        self.visual_tokenizer = build_visual_tokenizer(config)
+        self.patch_embed_dim = self.visual_tokenizer.output_dim
+        requested_perceiver_dim = int(config.get("perceiver_dim", self.patch_embed_dim))
+        use_token_dim_proj = config.get("use_token_dim_proj", True)
+        self.perceiver_dim = requested_perceiver_dim if use_token_dim_proj else self.patch_embed_dim
+        if use_token_dim_proj and self.patch_embed_dim != self.perceiver_dim:
+            self.token_dim_proj = nn.Linear(self.patch_embed_dim, self.perceiver_dim)
+        else:
+            self.token_dim_proj = nn.Identity()
+        self.vision_adapter = self.token_dim_proj
+        self.ln_vision = nn.LayerNorm(self.perceiver_dim)
+
+        if config.get("visual_tokenizer_type", "gvt").lower() == "gvt":
+            self.visual_encoder = self.visual_tokenizer.visual_encoder
+
+        if config.get("freeze_visual_tokenizer", True):
+            for n, p in self.visual_tokenizer.named_parameters():
+                p.requires_grad = False
 
         self._init_llama()
         self.llm_proj = nn.Linear(
-            self.patch_embed_dim, self.llm.config.hidden_size
+            self.perceiver_dim, self.llm.config.hidden_size
         )
         self.input_ln = nn.LayerNorm(self.llm.config.hidden_size)
 
         self.perceiver = PerceiverResampler(
-            dim = self.patch_embed_dim,
+            dim = self.perceiver_dim,
             dim_head = 96,
             depth = 6,
             heads = 16,
@@ -305,7 +321,8 @@ class GVT(pl.LightningModule):
     def forward_vision(self, samples):
         image = samples["image"][0]
 
-        image_embeds = self.visual_encoder.forward_features(image, return_all_features=True)
+        image_embeds = self.visual_tokenizer(image)
+        image_embeds = self.vision_adapter(image_embeds)
         image_embeds = self.ln_vision(image_embeds)
         inputs_llm = self.perceiver(image_embeds)
         return self.llm_proj(inputs_llm)
@@ -460,24 +477,24 @@ class GVT(pl.LightningModule):
 
     def test_epoch_end(self, outs):
         
-        try:
-            model_name = self.config['load_path'].split('/')[1] #f"mllm_{self.config['patch_embed_type']}"
-        except:
-            model_name = "dummy"
+        load_path = self.config.get("load_path", "")
+        model_name = Path(load_path).stem if load_path else "gvt"
 
         eval_gt_root = os.path.join(self.config["data_root"], "eval_gt")
+        pred_result_dir = self.config.get("pred_result_dir", "pred_results")
+        task_name = self.config.get("exp_name", "eval")
 
         if 'vqa' in self.config['exp_name']:
-            vqa.eval(outs, model_name, eval_gt_root=eval_gt_root)
+            vqa.eval(outs, model_name, eval_gt_root=eval_gt_root, result_dir=pred_result_dir)
 
         if 'multiclass' in self.config['exp_name']:
-            mc.eval(outs, model_name)
+            mc.eval(outs, model_name, result_dir=pred_result_dir, task_name=task_name)
 
         if 'count' in self.config['exp_name']:
-            count.eval(outs, model_name)
+            count.eval(outs, model_name, result_dir=os.path.join(pred_result_dir, "count"), task_name=task_name)
 
         if 'caption' in self.config['exp_name']:
-            coco_cap.eval(outs, model_name, coco_gt_root=eval_gt_root)
+            coco_cap.eval(outs, model_name, coco_gt_root=eval_gt_root, result_dir=pred_result_dir)
 
     def configure_optimizers(self):
         return utils.set_schedule(self)

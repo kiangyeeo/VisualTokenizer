@@ -11,6 +11,7 @@ from gvt.modules.evaluations.vqa_tools.vqa_eval import VQAEval
 def save_result(result, result_dir, filename, remove_duplicate=""):
     import json
 
+    os.makedirs(result_dir, exist_ok=True)
     result_file = os.path.join(
         result_dir, "%s_rank%d.json" % (filename, dist.get_rank())
     )
@@ -95,7 +96,7 @@ def _report_metrics(result_file, split, eval_gt_root=None):
 
     return metrics
     
-def eval(outputs, model_name, split="val", eval_gt_root=None):
+def eval(outputs, model_name, split="val", eval_gt_root=None, result_dir="pred_results"):
     pred_result = []
     for output in outputs:
         for qid, pred in zip(output['qids'], output['preds']):
@@ -107,13 +108,19 @@ def eval(outputs, model_name, split="val", eval_gt_root=None):
     save_filename = f"vqa_result_{split}_{model_name}"
     result_file = save_result(
         pred_result,
-        result_dir="pred_results",
+        result_dir=result_dir,
         filename=save_filename,
         remove_duplicate="question_id"
     )
 
     metrics = _report_metrics(result_file, split=split, eval_gt_root=eval_gt_root)
+    if dist.get_rank() == 0:
+        metrics_file = os.path.join(result_dir, f"{save_filename}_metrics.json")
+        with open(metrics_file, "w", encoding="utf-8") as fp:
+            json.dump(metrics, fp, indent=2)
+        print("metrics file saved to %s" % metrics_file)
     print("evaluated metrics:", metrics)
+    return metrics
 
 
 if __name__ == '__main__':

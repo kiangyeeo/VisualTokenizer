@@ -77,6 +77,7 @@ class COCOEvalCap:
 
 def save_result(result, result_dir, filename, remove_duplicate=""):
 
+    os.makedirs(result_dir, exist_ok=True)
     result_file = os.path.join(
         result_dir, "%s_rank%d.json" % (filename, dist.get_rank())
     )
@@ -142,7 +143,7 @@ def _report_metrics(eval_result_file, split_name, coco_gt_root=None):
     return coco_val
 
 
-def eval(outs, model_name, coco_gt_root=None):
+def eval(outs, model_name, coco_gt_root=None, result_dir="pred_results", split="val"):
     results = []
     for out in outs:
         captions = out['pred']
@@ -162,12 +163,18 @@ def eval(outs, model_name, coco_gt_root=None):
 
     result_file = save_result(
         result=new_results,
-        result_dir="pred_results",
-        filename="{}".format(model_name),
+        result_dir=result_dir,
+        filename=f"caption_result_{split}_{model_name}",
         remove_duplicate="id",
     )
 
-    metrics = _report_metrics(result_file, split_name='val', coco_gt_root=coco_gt_root)
+    metrics = _report_metrics(result_file, split_name=split, coco_gt_root=coco_gt_root)
+    if dist.get_rank() == 0:
+        metrics_file = os.path.join(result_dir, f"caption_result_{split}_{model_name}_metrics.json")
+        with open(metrics_file, "w", encoding="utf-8") as fp:
+            json.dump(metrics.eval, fp, indent=2)
+        print("metrics file saved to %s" % metrics_file)
 
     print("metrics:")
     print(metrics)
+    return metrics
