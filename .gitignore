@@ -64,3 +64,6 @@ Thumbs.db
 # Ad-hoc local copies/backups
 * copy.*
 *.bak
+
+.claude/
+.codex/

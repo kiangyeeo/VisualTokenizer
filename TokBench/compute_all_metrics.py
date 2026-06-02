@@ -68,7 +68,7 @@ def find_group(x, range_list):
 def get_args_parser():
     parser = argparse.ArgumentParser(' ', add_help=False)
     parser.add_argument('--tokenizer', type=str, default='chameleon')
-    parser.add_argument('--setting', type=str, choices=["256","512","1024"], default='256')
+    parser.add_argument('--setting', type=str, choices=["256","512","1024","480"], default='256')
     parser.add_argument("--data_type", type=str, default="image", choices=["image","video"], help=" eval for image or video")
     parser.add_argument('--output_path', type=str, default='image_outputs')
     return parser
@@ -253,7 +253,16 @@ def summarize_face(args):
 
 
 
+# Canonical settings per data type (mirrors the ratio_ranges dicts below).
+VALID_SETTINGS = {"image": {"256", "512", "1024"}, "video": {"256", "480"}}
+
+
 def main(args):
+   if args.setting not in VALID_SETTINGS[args.data_type]:
+       raise ValueError(
+           f"--setting {args.setting} is not valid for --data_type {args.data_type}; "
+           f"valid options: {sorted(VALID_SETTINGS[args.data_type])}"
+       )
    summarize_text(args)
    summarize_face(args)
    
