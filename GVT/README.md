@@ -1,34 +1,68 @@
-# GVT: Good Visual Tokenizer for LLMs
-This repo contains assets in our paper [What makes for Good Visual Tokenizers for Large Language Models?](https://arxiv.org/abs/2305.12223)
+# Quick Start: GVTBench
+**1. Environment Setup**
 
-
-## Model
-We provide related details in [gvt](./gvt/).
-
-
-## GVTBench
-We provide the Object Counting (OC) and Multi-Class Identification (MCI) on MS-COCO and VCR datasets in [GVTBench](./GVTBench/).
-
-
-## Acknowledgement
-Our work is built on 
-[VLMo](https://github.com/microsoft/unilm/tree/master/vlmo)
-[LAVIS](https://github.com/salesforce/LAVIS) 
-[EVA](https://github.com/baaivision/EVA) 
-[Vicuna](https://github.com/lm-sys/FastChat).
-
-Thanks for their great work!
-
-
-## Citation
-If you find this work useful, please cite:
+```bash
+cd GVT/gvt
+pip install -r requirements.txt
+pip install setuptools==59.5.0 protobuf==3.20.3
+conda install -c conda-forge openjdk=8
 ```
-@misc{wang2023gvt,
-      title={What Makes for Good Visual Tokenizers for Large Language Models?}, 
-      author={Guangzhi Wang and Yixiao Ge and Xiaohan Ding and Mohan Kankanhalli and Ying Shan},
-      year={2023},
-      eprint={2305.12223},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
-}
+
+**2. Download Model Weights**
+
+```bash
+GVT/gvt/scripts/download_weights.sh \
+  --output-dir /path/to/your/checkpoints \
+  --retry 10 \
 ```
+
+**3. Prepare COCO Caption Evaluator Dependencies**
+
+```bash
+GVT/gvt/scripts/download_eval_deps.sh
+```
+
+**4. No-VCR Running**
+
+```bash
+GVT/gvt/scripts/run_all_eval.sh \
+  --data-root /path/to/your/data/gvt/arrow \
+  --vicuna-path /path/to/your/checkpoints/vicuna-7b-v1.1 \
+  --load-path /path/to/your/checkpoints/gvt.pth \
+  --batch-size 16 \
+  --output-dir /path/to/your/outputs/gvt_eval_v11 \
+  --tasks task_eval_coco_count,task_eval_coco_multiclass,task_eval_coco_caption,task_eval_vqav2 \
+  --skip-missing-data
+```
+
+**5. VCR Running**
+
+```bash
+GVT/gvt/scripts/run_all_eval.sh \
+  --data-root /path/to/your/data/gvt/arrow \
+  --vicuna-path /path/to/your/checkpoints/vicuna-7b-v1.1 \
+  --load-path /path/to/your/checkpoints/gvt.pth \
+  --batch-size 16 \
+  --output-dir /path/to/your/outputs/gvt_eval_v11 \
+  --tasks task_eval_vcr_count,task_eval_vcr_multiclass
+```
+
+**6. Aggregate Results**
+
+```bash
+python GVT/tools/collect_results.py \
+  --result-dir /path/to/your/outputs/gvt_eval_v11/pred_results \
+  --output-json /path/to/your/outputs/gvt_eval_v11/summary_results.json \
+  --output-md /path/to/your/outputs/gvt_eval_v11/summary_results.md
+```
+
+Final results will be saved in:
+
+```bash
+cat /path/to/your/outputs/gvt_eval_v11/summary_results.md
+```
+
+
+
+
+

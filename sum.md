@@ -22,3 +22,6 @@
 | ISG-Bench                              | Interleaved     | Both         | https://github.com/Dongping-Chen/ISG                         |
 | OpenING                                | Interleaved     | Both         | https://opening-benchmark.github.io                          |
 | MMIE                                   | Interleaved     | Both         | https://arxiv.org/abs/2410.10139                             |
+
+
+
