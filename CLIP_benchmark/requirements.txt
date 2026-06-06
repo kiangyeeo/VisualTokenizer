@@ -1,8 +1,29 @@
-torch>=1.8.1
-torchvision>=0.8.9
-tqdm>=2
+
+--index-url https://pypi.org/simple
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+# CUDA 12.4 runtime for A100.
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+
+# OpenCLIP model/tokenizer stack.
+open_clip_torch==3.3.0
+timm==1.0.27
+einops
+ftfy
+regex
+transformers>=4.46
+safetensors
+huggingface_hub
+
+# Benchmark/runtime utilities.
+tqdm>=4.64
 scikit-learn>=1.0,<2
-open_clip_torch>=0.2.1
-pycocoevalcap
+Pillow
 webdataset>=0.2.31
-transformers
+
+# COCO retrieval and startup imports.
+pycocotools>=2.0.7
+pycocoevalcap
+
+requests
