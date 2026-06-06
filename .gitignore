@@ -64,3 +64,19 @@ Thumbs.db
 # Ad-hoc local copies/backups
 * copy.*
 *.bak
+
+.claude/
+.codex/
+
+# TokBench local downloads and generated evaluation artifacts
+TokBench/tokbench_data/
+
+TokBench/image_reconstruction_results/
+TokBench/video_reconstruction_results/
+
+
+image_reconstruction_results/
+TokBench/video_outputs/
+TokBench/image_outputs/TokBench/video_outputs/
+TokBench/image_outputs/
+TokBench/video_outputs/

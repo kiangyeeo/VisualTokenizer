@@ -68,9 +68,10 @@ def find_group(x, range_list):
 def get_args_parser():
     parser = argparse.ArgumentParser(' ', add_help=False)
     parser.add_argument('--tokenizer', type=str, default='chameleon')
-    parser.add_argument('--setting', type=str, choices=["256","512","1024"], default='256')
+    parser.add_argument('--setting', type=str, choices=["256","512","1024","480"], default='256')
     parser.add_argument("--data_type", type=str, default="image", choices=["image","video"], help=" eval for image or video")
     parser.add_argument('--output_path', type=str, default='image_outputs')
+    parser.add_argument('--summary_path', type=str, default=None, help="Path to save the printed summary tables")
     return parser
 
 
@@ -174,7 +175,9 @@ def summarize_text(args):
 
         tb.add_row(show_row)
             
-    print(tb)   
+    summary_table = tb.get_string()
+    print(summary_table)
+    return summary_table
             
 def summarize_face(args):
     ans_paths = [
@@ -248,18 +251,41 @@ def summarize_face(args):
 
         tb.add_row(show_row)
             
-    print(tb)   
+    summary_table = tb.get_string()
+    print(summary_table)
+    return summary_table
             
 
 
 
+# Canonical settings per data type (mirrors the ratio_ranges dicts below).
+VALID_SETTINGS = {"image": {"256", "512", "1024"}, "video": {"256", "480"}}
+
+
 def main(args):
-   summarize_text(args)
-   summarize_face(args)
+   if args.setting not in VALID_SETTINGS[args.data_type]:
+       raise ValueError(
+           f"--setting {args.setting} is not valid for --data_type {args.data_type}; "
+           f"valid options: {sorted(VALID_SETTINGS[args.data_type])}"
+       )
+   text_summary = summarize_text(args)
+   face_summary = summarize_face(args)
+
+   summary_path = args.summary_path
+   if summary_path is None:
+       summary_path = os.path.join(args.output_path, f"{args.data_type}_summary_{args.setting}.txt")
+   os.makedirs(os.path.dirname(summary_path) or ".", exist_ok=True)
+   with open(summary_path, 'w') as fp:
+       fp.write(f"{args.data_type} summary | setting={args.setting}\n\n")
+       fp.write("[Text]\n")
+       fp.write(text_summary)
+       fp.write("\n\n[Face]\n")
+       fp.write(face_summary)
+       fp.write("\n")
+   print(f"Saved summary tables to {summary_path}")
    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('script', parents=[get_args_parser()])
     args = parser.parse_args()
     main(args)
-
